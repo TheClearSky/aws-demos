@@ -1,5 +1,5 @@
 import BlurText from '../../Simple/BlurText/BlurText';
-import { Routes, Route, Outlet } from 'react-router';
+import { Outlet } from 'react-router';
 
 function KMS() {
   return (

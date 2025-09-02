@@ -1,15 +1,15 @@
 import AWS from 'aws-sdk';
-import {
-  KmsKeyringBrowser,
-  KMS,
-  getClient,
-  buildClient,
-  CommitmentPolicy,
-} from '@aws-crypto/client-browser';
-import { toBase64 } from '@aws-sdk/util-base64-browser';
-import { KMSClient, CreateKeyCommand } from "@aws-sdk/client-kms";
+// import {
+//   KmsKeyringBrowser,
+//   KMS,
+//   getClient,
+//   buildClient,
+//   CommitmentPolicy,
+// } from '@aws-crypto/client-browser';
+// import { toBase64 } from '@aws-sdk/util-base64-browser';
+// import { KMSClient } from '@aws-sdk/client-kms';
 
-async function createAKey(
+export async function createAKey(
   accessKeyId: string,
   secretAccessKey: string,
   region: string,
@@ -36,36 +36,35 @@ async function createAKey(
     return;
   }
 
-  const client = new KMSClient({
-    region: region,
-    credentials: {
-      accessKeyId: accessKeyId,
-      secretAccessKey: secretAccessKey,
-      sessionToken: data.Credentials.SessionToken,
-    },
-  });
+  // const client = new KMSClient({
+  //   region: region,
+  //   credentials: {
+  //     accessKeyId: accessKeyId,
+  //     secretAccessKey: secretAccessKey,
+  //     sessionToken: data.Credentials.SessionToken,
+  //   },
+  // });
 
-//   const input = { // CreateKeyRequest
-//     Policy: "STRING_VALUE",
-//     Description: "STRING_VALUE",
-//     KeyUsage: "SIGN_VERIFY" || "ENCRYPT_DECRYPT" || "GENERATE_VERIFY_MAC" || "KEY_AGREEMENT",
-//     CustomerMasterKeySpec: "RSA_2048" || "RSA_3072" || "RSA_4096" || "ECC_NIST_P256" || "ECC_NIST_P384" || "ECC_NIST_P521" || "ECC_SECG_P256K1" || "SYMMETRIC_DEFAULT" || "HMAC_224" || "HMAC_256" || "HMAC_384" || "HMAC_512" || "SM2",
-//     KeySpec: "RSA_2048" || "RSA_3072" || "RSA_4096" || "ECC_NIST_P256" || "ECC_NIST_P384" || "ECC_NIST_P521" || "ECC_SECG_P256K1" || "SYMMETRIC_DEFAULT" || "HMAC_224" || "HMAC_256" || "HMAC_384" || "HMAC_512" || "SM2" || "ML_DSA_44" || "ML_DSA_65" || "ML_DSA_87",
-//     Origin: "AWS_KMS" || "EXTERNAL" || "AWS_CLOUDHSM" || "EXTERNAL_KEY_STORE",
-//     CustomKeyStoreId: "STRING_VALUE",
-//     BypassPolicyLockoutSafetyCheck: true || false,
-//     Tags: [ // TagList
-//       { // Tag
-//         TagKey: "STRING_VALUE", // required
-//         TagValue: "STRING_VALUE", // required
-//       },
-//     ],
-//     MultiRegion: true || false,
-//     XksKeyId: "STRING_VALUE",
-//   };
-//   const command = new CreateKeyCommand(input);
-//   const response = await client.send(command);
-
+  //   const input = { // CreateKeyRequest
+  //     Policy: "STRING_VALUE",
+  //     Description: "STRING_VALUE",
+  //     KeyUsage: "SIGN_VERIFY" || "ENCRYPT_DECRYPT" || "GENERATE_VERIFY_MAC" || "KEY_AGREEMENT",
+  //     CustomerMasterKeySpec: "RSA_2048" || "RSA_3072" || "RSA_4096" || "ECC_NIST_P256" || "ECC_NIST_P384" || "ECC_NIST_P521" || "ECC_SECG_P256K1" || "SYMMETRIC_DEFAULT" || "HMAC_224" || "HMAC_256" || "HMAC_384" || "HMAC_512" || "SM2",
+  //     KeySpec: "RSA_2048" || "RSA_3072" || "RSA_4096" || "ECC_NIST_P256" || "ECC_NIST_P384" || "ECC_NIST_P521" || "ECC_SECG_P256K1" || "SYMMETRIC_DEFAULT" || "HMAC_224" || "HMAC_256" || "HMAC_384" || "HMAC_512" || "SM2" || "ML_DSA_44" || "ML_DSA_65" || "ML_DSA_87",
+  //     Origin: "AWS_KMS" || "EXTERNAL" || "AWS_CLOUDHSM" || "EXTERNAL_KEY_STORE",
+  //     CustomKeyStoreId: "STRING_VALUE",
+  //     BypassPolicyLockoutSafetyCheck: true || false,
+  //     Tags: [ // TagList
+  //       { // Tag
+  //         TagKey: "STRING_VALUE", // required
+  //         TagValue: "STRING_VALUE", // required
+  //       },
+  //     ],
+  //     MultiRegion: true || false,
+  //     XksKeyId: "STRING_VALUE",
+  //   };
+  //   const command = new CreateKeyCommand(input);
+  //   const response = await client.send(command);
 }
 function CreateKey() {
   return <div>CreateKey</div>;
