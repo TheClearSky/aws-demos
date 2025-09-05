@@ -1,4 +1,11 @@
-import AWS from 'aws-sdk';
+import { Button } from '@/components/ui/button';
+import type { RootState } from '@/store';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 // import {
 //   KmsKeyringBrowser,
 //   KMS,
@@ -7,67 +14,113 @@ import AWS from 'aws-sdk';
 //   CommitmentPolicy,
 // } from '@aws-crypto/client-browser';
 // import { toBase64 } from '@aws-sdk/util-base64-browser';
-// import { KMSClient } from '@aws-sdk/client-kms';
+import { KMSClient, CreateKeyCommand } from '@aws-sdk/client-kms';
 
-export async function createAKey(
+async function createAKey(
   accessKeyId: string,
   secretAccessKey: string,
   region: string,
 ) {
-  // Configure AWS region and credentials (if not already set via environment variables or shared credentials file)
-  AWS.config.update({
-    region: region, // e.g., 'us-east-1'
-    accessKeyId: accessKeyId,
-    secretAccessKey: secretAccessKey,
-  });
+  try {
+    // Create KMS client with permanent credentials directly
+    const client = new KMSClient({
+      region: region,
+      credentials: {
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+      },
+    });
 
-  const sts = new AWS.STS();
+    const input = {
+      KeyUsage: 'ENCRYPT_DECRYPT' as const,
+      KeySpec: 'RSA_2048' as const,
+      Origin: 'AWS_KMS' as const,
+      BypassPolicyLockoutSafetyCheck: false,
+      Tags: [],
+      MultiRegion: false,
+    };
 
-  const params = {
-    // Optional: Duration in seconds for the temporary credentials. Default is 1 hour (3600 seconds).
-    // Max for IAM users is 36 hours (129600 seconds), for account credentials is 1 hour (3600 seconds).
-    DurationSeconds: 3600,
-    // Optional: If MFA is enabled and required, provide the MFA device ARN and the MFA token.
-    // SerialNumber: 'arn:aws:iam::123456789012:mfa/user',
-    // TokenCode: '123456'
-  };
-  const data = await sts.getSessionToken(params).promise();
-  if (!data.Credentials) {
-    return;
+    const command = new CreateKeyCommand(input);
+    const response = await client.send(command);
+
+    console.log('KMS Key created successfully:', response);
+    return response.KeyMetadata?.KeyId;
+  } catch (error) {
+    console.error('Error creating KMS key:', error);
+    throw error;
   }
-
-  // const client = new KMSClient({
-  //   region: region,
-  //   credentials: {
-  //     accessKeyId: accessKeyId,
-  //     secretAccessKey: secretAccessKey,
-  //     sessionToken: data.Credentials.SessionToken,
-  //   },
-  // });
-
-  //   const input = { // CreateKeyRequest
-  //     Policy: "STRING_VALUE",
-  //     Description: "STRING_VALUE",
-  //     KeyUsage: "SIGN_VERIFY" || "ENCRYPT_DECRYPT" || "GENERATE_VERIFY_MAC" || "KEY_AGREEMENT",
-  //     CustomerMasterKeySpec: "RSA_2048" || "RSA_3072" || "RSA_4096" || "ECC_NIST_P256" || "ECC_NIST_P384" || "ECC_NIST_P521" || "ECC_SECG_P256K1" || "SYMMETRIC_DEFAULT" || "HMAC_224" || "HMAC_256" || "HMAC_384" || "HMAC_512" || "SM2",
-  //     KeySpec: "RSA_2048" || "RSA_3072" || "RSA_4096" || "ECC_NIST_P256" || "ECC_NIST_P384" || "ECC_NIST_P521" || "ECC_SECG_P256K1" || "SYMMETRIC_DEFAULT" || "HMAC_224" || "HMAC_256" || "HMAC_384" || "HMAC_512" || "SM2" || "ML_DSA_44" || "ML_DSA_65" || "ML_DSA_87",
-  //     Origin: "AWS_KMS" || "EXTERNAL" || "AWS_CLOUDHSM" || "EXTERNAL_KEY_STORE",
-  //     CustomKeyStoreId: "STRING_VALUE",
-  //     BypassPolicyLockoutSafetyCheck: true || false,
-  //     Tags: [ // TagList
-  //       { // Tag
-  //         TagKey: "STRING_VALUE", // required
-  //         TagValue: "STRING_VALUE", // required
-  //       },
-  //     ],
-  //     MultiRegion: true || false,
-  //     XksKeyId: "STRING_VALUE",
-  //   };
-  //   const command = new CreateKeyCommand(input);
-  //   const response = await client.send(command);
 }
 function CreateKey() {
-  return <div>CreateKey</div>;
+  const { hasCredentials } = useAuthRedirect();
+  const awsAccessKeyId = useSelector(
+    (state: RootState) => state.auth.AWS_ACCESS_KEY_ID,
+  );
+  const awsSecretAccessKey = useSelector(
+    (state: RootState) => state.auth.AWS_SECRET_ACCESS_KEY,
+  );
+  const region = useSelector((state: RootState) => state.auth.AWS_REGION);
+  const navigate = useNavigate();
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  if (!hasCredentials) {
+    return null; // Will redirect to home
+  }
+
+  const handleCreateKey = async () => {
+    if (!awsAccessKeyId || !awsSecretAccessKey || !region) {
+      toast.error('Please provide all AWS credentials');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setGeneratedKey(null);
+
+    try {
+      const key = await createAKey(awsAccessKeyId, awsSecretAccessKey, region);
+      setGeneratedKey(key || 'Key created but ID not returned');
+      toast.success('KMS key created successfully!');
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to create key: ${errorMessage}`);
+      toast.error(`Failed to create key: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className='space-y-6 max-w-4xl mx-auto px-4 bg-black/30 p-8 rounded-xl border border-white/10'>
+      <Button onClick={() => navigate('/kms')} variant='back' className='mb-4'>
+        <ArrowLeft className='w-4 h-4 mr-2' />
+        Back to KMS Menu
+      </Button>
+
+      <Button
+        onClick={handleCreateKey}
+        disabled={isLoading}
+        variant='action'
+        className='w-full'
+      >
+        {isLoading ? 'Creating...' : 'Create Key'}
+      </Button>
+
+      {generatedKey && (
+        <div className='text-white mt-5 text-2xl wrap-break-word max-w-[300px]'>
+          Generated Key: {generatedKey}
+        </div>
+      )}
+
+      {error && (
+        <div className='text-red-400 mt-5 text-lg wrap-break-word max-w-[400px]'>
+          Error: {error}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export { CreateKey };

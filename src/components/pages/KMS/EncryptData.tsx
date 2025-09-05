@@ -17,16 +17,16 @@ import { toast } from 'sonner';
 import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import {
   KMSClient,
-  GenerateDataKeyCommand,
+  EncryptCommand,
   ListKeysCommand,
 } from '@aws-sdk/client-kms';
 
-async function generateDataKey(
+async function encryptData(
   accessKeyId: string,
   secretAccessKey: string,
   region: string,
+  plaintext: string,
   keyId: string,
-  keySpec: 'AES_256' | 'AES_128' = 'AES_256',
 ) {
   try {
     const client = new KMSClient({
@@ -39,20 +39,16 @@ async function generateDataKey(
 
     const input = {
       KeyId: keyId,
-      KeySpec: keySpec,
+      Plaintext: new TextEncoder().encode(plaintext),
     };
 
-    const command = new GenerateDataKeyCommand(input);
+    const command = new EncryptCommand(input);
     const response = await client.send(command);
 
-    console.log('Data key generated successfully:', response);
-    return {
-      plaintext: response.Plaintext,
-      ciphertextBlob: response.CiphertextBlob,
-      keyId: response.KeyId,
-    };
+    console.log('Data encrypted successfully:', response);
+    return response.CiphertextBlob;
   } catch (error) {
-    console.error('Error generating data key:', error);
+    console.error('Error encrypting data:', error);
     throw error;
   }
 }
@@ -81,7 +77,7 @@ async function listKMSKeys(
   }
 }
 
-function GenerateDataKey() {
+function EncryptData() {
   const { hasCredentials } = useAuthRedirect();
   const awsAccessKeyId = useSelector(
     (state: RootState) => state.auth.AWS_ACCESS_KEY_ID,
@@ -92,16 +88,12 @@ function GenerateDataKey() {
   const region = useSelector((state: RootState) => state.auth.AWS_REGION);
   const navigate = useNavigate();
 
+  const [plaintext, setPlaintext] = useState('');
   const [selectedKeyId, setSelectedKeyId] = useState('');
-  const [keySpec, setKeySpec] = useState<'AES_256' | 'AES_128'>('AES_256');
   const [availableKeys, setAvailableKeys] = useState<
     Array<{ KeyId?: string; KeyArn?: string }>
   >([]);
-  const [generatedKey, setGeneratedKey] = useState<{
-    plaintext: Uint8Array | undefined;
-    ciphertextBlob: Uint8Array | undefined;
-    keyId: string | undefined;
-  } | null>(null);
+  const [encryptedData, setEncryptedData] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
@@ -145,9 +137,14 @@ function GenerateDataKey() {
     return null; // Will redirect to home
   }
 
-  const handleGenerateKey = async () => {
+  const handleEncrypt = async () => {
     if (!awsAccessKeyId || !awsSecretAccessKey || !region) {
       toast.error('Please provide all AWS credentials');
+      return;
+    }
+
+    if (!plaintext.trim()) {
+      toast.error('Please enter text to encrypt');
       return;
     }
 
@@ -158,30 +155,29 @@ function GenerateDataKey() {
 
     setIsLoading(true);
     setError(null);
-    setGeneratedKey(null);
+    setEncryptedData(null);
 
     try {
-      const result = await generateDataKey(
+      const encrypted = await encryptData(
         awsAccessKeyId,
         awsSecretAccessKey,
         region,
+        plaintext,
         selectedKeyId,
-        keySpec,
       );
-      setGeneratedKey(result);
-      toast.success('Data key generated successfully!');
+      setEncryptedData(encrypted || null);
+      toast.success('Data encrypted successfully!');
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(`Failed to generate data key: ${errorMessage}`);
-      toast.error(`Failed to generate data key: ${errorMessage}`);
+      setError(`Failed to encrypt data: ${errorMessage}`);
+      toast.error(`Failed to encrypt data: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatKeyData = (data: Uint8Array | undefined) => {
-    if (!data) return '';
+  const formatEncryptedData = (data: Uint8Array) => {
     return btoa(String.fromCharCode(...data));
   };
 
@@ -212,69 +208,34 @@ function GenerateDataKey() {
         </div>
 
         <div className='space-y-2'>
-          <Label htmlFor='key-spec'>Key Specification</Label>
-          <Select
-            value={keySpec}
-            onValueChange={(value: 'AES_256' | 'AES_128') => setKeySpec(value)}
-          >
-            <SelectTrigger className='w-full'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='AES_256'>AES_256 (256-bit key)</SelectItem>
-              <SelectItem value='AES_128'>AES_128 (128-bit key)</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label htmlFor='plaintext'>Text to Encrypt</Label>
+          <Textarea
+            id='plaintext'
+            value={plaintext}
+            onChange={(e) => setPlaintext(e.target.value)}
+            placeholder='Enter the text you want to encrypt...'
+            className='min-h-[100px]'
+          />
         </div>
 
         <Button
-          onClick={handleGenerateKey}
-          disabled={isLoading || !selectedKeyId}
+          onClick={handleEncrypt}
+          disabled={isLoading || !plaintext.trim() || !selectedKeyId}
           variant='action'
           className='w-full'
         >
-          {isLoading ? 'Generating...' : 'Generate Data Key'}
+          {isLoading ? 'Encrypting...' : 'Encrypt Data'}
         </Button>
       </div>
 
-      {generatedKey && (
-        <div className='space-y-4 max-w-2xl'>
-          <div className='space-y-2'>
-            <Label>Plaintext Data Key (Base64)</Label>
-            <Textarea
-              value={formatKeyData(generatedKey.plaintext)}
-              readOnly
-              className='min-h-[100px] font-mono text-sm'
-            />
-            <p className='text-sm text-yellow-400'>
-              ⚠️ Warning: This is the plaintext key. Store it securely and
-              delete it after use.
-            </p>
-          </div>
-
-          <div className='space-y-2'>
-            <Label>Encrypted Data Key (Base64)</Label>
-            <Textarea
-              value={formatKeyData(generatedKey.ciphertextBlob)}
-              readOnly
-              className='min-h-[100px] font-mono text-sm'
-            />
-            <p className='text-sm text-green-400'>
-              ✅ This encrypted key can be safely stored and used to decrypt the
-              plaintext key later.
-            </p>
-          </div>
-
-          {generatedKey.keyId && (
-            <div className='space-y-2'>
-              <Label>Key ID</Label>
-              <Textarea
-                value={generatedKey.keyId}
-                readOnly
-                className='min-h-[50px] font-mono text-sm'
-              />
-            </div>
-          )}
+      {encryptedData && (
+        <div className='space-y-2 max-w-2xl'>
+          <Label>Encrypted Data (Base64)</Label>
+          <Textarea
+            value={formatEncryptedData(encryptedData)}
+            readOnly
+            className='min-h-[100px] font-mono text-sm'
+          />
         </div>
       )}
 
@@ -285,4 +246,4 @@ function GenerateDataKey() {
   );
 }
 
-export { GenerateDataKey };
+export { EncryptData };

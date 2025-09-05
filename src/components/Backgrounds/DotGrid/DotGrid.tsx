@@ -5,9 +5,12 @@ import { InertiaPlugin } from 'gsap/InertiaPlugin';
 
 gsap.registerPlugin(InertiaPlugin);
 
-const throttle = (func: (...args: any[]) => void, limit: number) => {
+const throttle = <T extends unknown[]>(
+  func: (...args: T) => void,
+  limit: number,
+) => {
   let lastCall = 0;
-  return function (this: any, ...args: any[]) {
+  return function (this: unknown, ...args: T) {
     const now = performance.now();
     if (now - lastCall >= limit) {
       lastCall = now;
@@ -77,6 +80,7 @@ const DotGrid: React.FC<DotGridProps> = ({
     lastTime: 0,
     lastX: 0,
     lastY: 0,
+    isOverInteractive: false,
   });
 
   const baseRgb = useMemo(() => hexToRgb(baseColor), [baseColor]);
@@ -154,7 +158,13 @@ const DotGrid: React.FC<DotGridProps> = ({
         let style = baseColor;
         if (dsq <= proxSq) {
           const dist = Math.sqrt(dsq);
-          const t = 1 - dist / proximity;
+          let t = 1 - dist / proximity;
+
+          // Reduce intensity when over interactive elements
+          if (pointerRef.current.isOverInteractive) {
+            t *= 0.1; // Reduce to 10% intensity
+          }
+
           const r = Math.round(baseRgb.r + (activeRgb.r - baseRgb.r) * t);
           const g = Math.round(baseRgb.g + (activeRgb.g - baseRgb.g) * t);
           const b = Math.round(baseRgb.b + (activeRgb.b - baseRgb.b) * t);
@@ -180,7 +190,9 @@ const DotGrid: React.FC<DotGridProps> = ({
     let ro: ResizeObserver | null = null;
     if ('ResizeObserver' in window) {
       ro = new ResizeObserver(buildGrid);
-      wrapperRef.current && ro.observe(wrapperRef.current);
+      if (wrapperRef.current) {
+        ro.observe(wrapperRef.current);
+      }
     } else {
       (window as Window).addEventListener('resize', buildGrid);
     }
@@ -217,6 +229,30 @@ const DotGrid: React.FC<DotGridProps> = ({
       pr.x = e.clientX - rect.left;
       pr.y = e.clientY - rect.top;
 
+      // Check if mouse is over interactive elements
+      const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+      const isOverInteractive =
+        elementBelow &&
+        (elementBelow.tagName === 'BUTTON' ||
+          elementBelow.tagName === 'INPUT' ||
+          elementBelow.tagName === 'TEXTAREA' ||
+          elementBelow.tagName === 'SELECT' ||
+          elementBelow.tagName === 'LABEL' ||
+          elementBelow.tagName === 'P' ||
+          elementBelow.closest('button') ||
+          elementBelow.closest('input') ||
+          elementBelow.closest('textarea') ||
+          elementBelow.closest('select') ||
+          elementBelow.closest('label') ||
+          elementBelow.closest('p') ||
+          elementBelow.closest('[role="button"]') ||
+          elementBelow.closest('[data-slot="button"]') ||
+          elementBelow.closest('[data-slot="input"]') ||
+          elementBelow.closest('[data-slot="textarea"]') ||
+          elementBelow.closest('[data-slot="select-trigger"]') ||
+          elementBelow.closest('[data-slot="label"]'));
+      pr.isOverInteractive = !!isOverInteractive;
+
       for (const dot of dotsRef.current) {
         const dist = Math.hypot(dot.cx - pr.x, dot.cy - pr.y);
         if (speed > speedTrigger && dist < proximity && !dot._inertiaApplied) {
@@ -244,14 +280,45 @@ const DotGrid: React.FC<DotGridProps> = ({
       const rect = canvasRef.current!.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
+
+      // Check if click is over interactive elements
+      const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+      const isOverInteractive =
+        elementBelow &&
+        (elementBelow.tagName === 'BUTTON' ||
+          elementBelow.tagName === 'INPUT' ||
+          elementBelow.tagName === 'TEXTAREA' ||
+          elementBelow.tagName === 'SELECT' ||
+          elementBelow.tagName === 'LABEL' ||
+          elementBelow.tagName === 'P' ||
+          elementBelow.closest('button') ||
+          elementBelow.closest('input') ||
+          elementBelow.closest('textarea') ||
+          elementBelow.closest('select') ||
+          elementBelow.closest('label') ||
+          elementBelow.closest('p') ||
+          elementBelow.closest('[role="button"]') ||
+          elementBelow.closest('[data-slot="button"]') ||
+          elementBelow.closest('[data-slot="input"]') ||
+          elementBelow.closest('[data-slot="textarea"]') ||
+          elementBelow.closest('[data-slot="select-trigger"]') ||
+          elementBelow.closest('[data-slot="label"]'));
+
       for (const dot of dotsRef.current) {
         const dist = Math.hypot(dot.cx - cx, dot.cy - cy);
         if (dist < shockRadius && !dot._inertiaApplied) {
           dot._inertiaApplied = true;
           gsap.killTweensOf(dot);
           const falloff = Math.max(0, 1 - dist / shockRadius);
-          const pushX = (dot.cx - cx) * shockStrength * falloff;
-          const pushY = (dot.cy - cy) * shockStrength * falloff;
+          let strength = shockStrength;
+
+          // Reduce strength when over interactive elements
+          if (isOverInteractive) {
+            strength *= 0.2; // Reduce to 20% strength
+          }
+
+          const pushX = (dot.cx - cx) * strength * falloff;
+          const pushY = (dot.cy - cy) * strength * falloff;
           gsap.to(dot, {
             inertia: { xOffset: pushX, yOffset: pushY, resistance },
             onComplete: () => {

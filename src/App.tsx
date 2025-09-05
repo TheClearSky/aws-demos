@@ -5,7 +5,10 @@ import { ChooseService } from './components/pages/ChooseService';
 import { KMS } from './components/pages/KMS/KMS';
 import { CreateKey } from './components/pages/KMS/CreateKey';
 import { GenerateDataKey } from './components/pages/KMS/GenerateDataKey';
+import { EncryptData } from './components/pages/KMS/EncryptData';
+import { DecryptData } from './components/pages/KMS/DecryptData';
 import { Menu } from './components/pages/KMS/Menu';
+import { Toaster } from './components/ui/sonner';
 
 function App() {
   return (
@@ -21,6 +24,8 @@ function App() {
               path='/kms/generate-data-key'
               element={<GenerateDataKey />}
             />
+            <Route path='/kms/encrypt-data' element={<EncryptData />} />
+            <Route path='/kms/decrypt-data' element={<DecryptData />} />
           </Route>
         </Routes>
       </div>
@@ -28,8 +33,8 @@ function App() {
         <DotGrid
           dotSize={5}
           gap={15}
-          baseColor='#0e0b14'
-          activeColor='#1e0e5e'
+          baseColor='#2a2a2a'
+          activeColor='#ffffff'
           proximity={120}
           shockRadius={250}
           shockStrength={5}
@@ -37,6 +42,7 @@ function App() {
           returnDuration={1.5}
         />
       </div>
+      <Toaster />
     </div>
   );
 }
