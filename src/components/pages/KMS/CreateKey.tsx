@@ -27,6 +27,17 @@ import { useAuthRedirect } from '@/hooks/useAuthRedirect';
 import { KMSClient, CreateKeyCommand } from '@aws-sdk/client-kms';
 import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 
+type KeySpec =
+  | 'SYMMETRIC_DEFAULT'
+  | 'RSA_2048'
+  | 'RSA_3072'
+  | 'RSA_4096'
+  | 'ECC_NIST_P256'
+  | 'ECC_NIST_P384'
+  | 'ECC_NIST_P521'
+  | 'ECC_SECG_P256K1'
+  | 'SM2';
+
 const generateKeyPolicy = (
   userArns: string[],
   keyOwnerArn: string,
@@ -112,7 +123,8 @@ async function createAKey(
   secretAccessKey: string,
   region: string,
   userArns: string[],
-  keySpec: string,
+  keySpec: KeySpec,
+
   keyUsage: 'ENCRYPT_DECRYPT' | 'SIGN_VERIFY',
   keyType: 'symmetric' | 'asymmetric',
 ) {
@@ -138,7 +150,7 @@ async function createAKey(
 
     const input = {
       KeyUsage: keyUsage,
-      KeySpec: keySpec as any,
+      KeySpec: keySpec,
       Origin: 'AWS_KMS' as const,
       BypassPolicyLockoutSafetyCheck: false,
       Tags: [],
@@ -174,7 +186,7 @@ function CreateKey() {
   const [keyType, setKeyType] = useState<'symmetric' | 'asymmetric'>(
     'symmetric',
   );
-  const [keySpec, setKeySpec] = useState<string>('SYMMETRIC_DEFAULT');
+  const [keySpec, setKeySpec] = useState<KeySpec>('SYMMETRIC_DEFAULT');
 
   if (!hasCredentials) {
     return null; // Will redirect to home
@@ -303,7 +315,10 @@ function CreateKey() {
 
         <div className='space-y-2'>
           <Label htmlFor='key-spec'>Key Specification</Label>
-          <Select value={keySpec} onValueChange={setKeySpec}>
+          <Select
+            value={keySpec}
+            onValueChange={(value: KeySpec) => setKeySpec(value)}
+          >
             <SelectTrigger className='w-full'>
               <SelectValue />
             </SelectTrigger>

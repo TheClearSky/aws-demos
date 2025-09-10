@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "pretty": "prettier --write .",
-    "checklist": "npm run pretty && npm run lint && npm run build"
+    "checklist": "npm run pretty && npm run lint && npm run build",
+    "cl": "npm run checklist"
   },
   "dependencies": {
     "@aws-crypto/client-browser": "^4.2.1",
